@@ -16,7 +16,7 @@ export default function ConfirmPassword() {
     return (
         <>
             <Head title="Confirm password" />
-            <div className="w3-container w3-center w3-padding-32" style={{ maxWidth: '400px', margin: 'auto' }}>
+            <div className="w3-container w3-center w3-padding-32 w3-text-custom-yellow" style={{ maxWidth: '400px', margin: 'auto' }}>
                 <h2>Confirm your password</h2>
                 <p>This is a secure area of the application. Please confirm your password before continuing.</p>
 
