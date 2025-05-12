@@ -45,16 +45,17 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         // Check if required profile fields are filled
-        $missingProfileFields = empty($user->pan_card)
-            || empty($user->address_proof)
-            || empty($user->bank_proof)
-            || empty($user->self_photograph)
-            || !$user->kyc_verified
-            || ($user->questions_answered_count < 10);
+        // $missingProfileFields = empty($user->pan_card)
+        //     || empty($user->address_proof)
+        //     || empty($user->bank_proof)
+        //     || empty($user->self_photograph)
+        //     || !$user->kyc_verified
+        //     || ($user->questions_answered_count < 10);
 
-        if ($missingProfileFields) {
-            return redirect()->route('profile.edit')->with('status', 'Please complete your profile and KYC verification.');
-        }
+        // if ($missingProfileFields) {
+        //     return redirect()->route('profile.edit')->with('status', 'Please complete your profile and KYC verification.');
+        // }
+        //Check above is done by the dashboard page itself leveraging the usePage hook
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

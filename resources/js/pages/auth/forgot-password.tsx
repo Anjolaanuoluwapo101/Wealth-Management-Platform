@@ -13,7 +13,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
     return (
         <>
             <Head title="Forgot password" />
-            <div className="w3-container w3-center w3-padding-32" style={{ width: '50%', margin: 'auto' }}>
+            <div className="w3-container w3-center w3-padding-32" style={{ width: '80%', margin: 'auto' }}>
                 <h2 className="w3-text-custom-yellow">Forgot password</h2>
                 <p>Enter your email to receive a password reset link</p>
 

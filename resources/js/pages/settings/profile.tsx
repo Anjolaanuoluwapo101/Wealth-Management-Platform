@@ -8,7 +8,7 @@ type ProfileForm = {
     pan_card: string;
     address_proof: File | string | null;
     bank_proof: File | string | null;
-    self_photograph: File |string |  null;
+    self_photograph: File | string | null;
     kyc_verified: boolean;
     questions_answers: string[];
 };
@@ -42,8 +42,6 @@ export default function Profile() {
             : JSON.parse(typeof auth.user.questions_answers === 'string' ? auth.user.questions_answers : '[]'),
     });
 
-    console.log(data.questions_answers);
-
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
@@ -58,7 +56,7 @@ export default function Profile() {
         formData.append('questions_answers', JSON.stringify(data.questions_answers));
 
         post(route('profile.update'), {
-            headers : {
+            headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 'Accept': 'application/json',
                 'Content-Type': 'multipart/form-data',
@@ -67,19 +65,6 @@ export default function Profile() {
             onError: () => console.error('Error updating profile'),
         });
 
-        // fetch(route('profile.update'), {
-        //     method : 'POST',
-        //     headers : {
-        //         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        //         'Accept': 'application/json',
-        //         // 'Content-Type' : 'multipart/form-data'
-        //     },
-        //     body : formData
-        // }).then((response) => {
-            
-        // }).catch((error) => {
-        //     console.log(error)
-        // });
     };
 
     const handleFileChange = (field: keyof ProfileForm, file: File | null) => {
@@ -92,12 +77,22 @@ export default function Profile() {
         setData('questions_answers', updatedAnswers);
     };
 
+    const isStoredImage = (value: File | string | null): value is string => {
+        // return typeof value === 'string' ;
+        return true;
+    };
+
     return (
         <>
             <Head title="Profile Settings" />
-            <div className="w3-container w3-padding-16 w3-card-4 w3-light-grey w3-margin">
-                <h2>Profile Information</h2>
-                <p>Update your profile details and KYC information.</p>
+            <br />
+            <br />
+
+            <div className="w3-container w3-padding-16 w3-card-4 w3-light-grey" style={{ maxWidth: "80%", margin: "auto" }}>
+                <div className='w3-center w3-text-custom-yellow'>
+                <h2>Profile Informations</h2>
+                <p style={{color: "black"}}>Update your profile details and KYC information.</p>
+                </div>
                 <form onSubmit={submit} encType="multipart/form-data">
                     <label htmlFor="name" className="w3-text-black">Name</label>
                     <input
@@ -131,7 +126,9 @@ export default function Profile() {
                     />
                     {errors.pan_card && <p className="w3-text-red">{errors.pan_card}</p>}
 
-                    <label htmlFor="address_proof" className="w3-text-black">Address Proof</label>
+
+
+                    <label htmlFor="address_proof" className="w3-text-black"><b>Address Proof</b></label>
                     <input
                         id="address_proof"
                         type="file"
@@ -139,8 +136,16 @@ export default function Profile() {
                         onChange={(e) => handleFileChange('address_proof', e.target.files?.[0] || null)}
                     />
                     {errors.address_proof && <p className="w3-text-red">{errors.address_proof}</p>}
+                    {isStoredImage(data.address_proof) && (
+                        <div className="w3-margin-bottom">
+                            <img src={'/storage/' + data.address_proof} alt="Address Proof" className="w3-image" style={{ maxWidth: '200px' }} />
+                        </div>
+                    )}
+                    <br />
+                    <br />
 
-                    <label htmlFor="bank_proof" className="w3-text-black">Bank Proof</label>
+
+                    <label htmlFor="bank_proof" className="w3-text-black"><b>Bank Proof</b></label>
                     <input
                         id="bank_proof"
                         type="file"
@@ -148,8 +153,16 @@ export default function Profile() {
                         onChange={(e) => handleFileChange('bank_proof', e.target.files?.[0] || null)}
                     />
                     {errors.bank_proof && <p className="w3-text-red">{errors.bank_proof}</p>}
+                    {isStoredImage(data.bank_proof) && (
+                        <div className="w3-margin-bottom">
+                            <img src={'/storage/' + data.bank_proof} alt="Bank Proof" className="w3-image" style={{ maxWidth: '200px' }} />
+                        </div>
+                    )}
 
-                    <label htmlFor="self_photograph" className="w3-text-black">Self Photograph</label>
+
+                    <br />
+                    <br />
+                    <label htmlFor="self_photograph" className="w3-text-black"><b>Self Photograph</b></label>
                     <input
                         id="self_photograph"
                         type="file"
@@ -157,14 +170,21 @@ export default function Profile() {
                         onChange={(e) => handleFileChange('self_photograph', e.target.files?.[0] || null)}
                     />
                     {errors.self_photograph && <p className="w3-text-red">{errors.self_photograph}</p>}
-
-                    <label htmlFor="kyc_verified" className="w3-text-black">KYC Verified</label>
+                    {isStoredImage(data.self_photograph) && (
+                        <div className="w3-margin-bottom">
+                            <img src={'/storage/' + data.self_photograph} alt="Self Photograph" className="w3-image" style={{ maxWidth: '200px' }} />
+                        </div>
+                    )}
+                    <br />
+                    <br />
+                    <label htmlFor="kyc_verified" className="w3-text-black "><b>KYC Verified</b></label>
+                    <br />
                     <input
                         id="kyc_verified"
                         type="checkbox"
                         className="w3-check w3-margin-bottom"
                         checked={data.kyc_verified ?? false}
-                        value= {data.kyc_verified ? '1' : '0'}
+                        value={data.kyc_verified ? '1' : '0'}
                         onChange={(e) => setData('kyc_verified', e.target.checked)}
                     />
                     {errors.kyc_verified && <p className="w3-text-red">{errors.kyc_verified}</p>}
@@ -188,7 +208,7 @@ export default function Profile() {
 
                     <button
                         type="submit"
-                        className="w3-button w3-red w3-section w3-padding"
+                        className="w3-button w3-custom-blue-l1 w3-section w3-padding w3-right"
                         disabled={processing}
                     >
                         {processing ? 'Saving...' : 'Save'}

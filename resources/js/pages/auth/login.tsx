@@ -22,7 +22,7 @@ export default function Login({ status, canResetPassword }: { status?: string; c
     return (
         <>
             <Head title="Log in" />
-            <div className="w3-container  w3-padding-32 w3-center" style={{ width: '50%' , margin : 'auto' }} >
+            <div className="w3-container  w3-padding-32 w3-center" style={{ width: '80%' , margin : 'auto' }} >
                 <h2 className='w3-text-custom-yellow'>Log in to your account!</h2>
                 {status && <div className="w3-panel w3-green w3-round">{status}</div>}
                 <form className="w3-container w3-card-4 w3-round-xlarge w3-custom-blue-l5 w3-text-black w3-margin" onSubmit={submit}>

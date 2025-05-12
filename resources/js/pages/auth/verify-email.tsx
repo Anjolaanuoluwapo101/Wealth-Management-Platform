@@ -54,9 +54,11 @@ export default function VerifyEmail({ status }: { status?: string }) {
     return (
         <>
             <Head title="Email verification" />
-            <div className="w3-container w3-center w3-padding-32" style={{ width: '50%', margin: 'auto' }}>
+            <div className="w3-container w3-center w3-padding-32" style={{ width: '80%', margin: 'auto' }}>
                 <h2 className="w3-text-custom-yellow">Verify email</h2>
                 <p>Please verify your email address by clicking on the link we just emailed to you.</p>
+                <br />
+                <p> Once you have clicked the verification link (you may have to click multiple times) sent to your email, Please go ahead an refresh this page!</p>
 
                 {status === 'verification-link-sent' && (
                     <div className="w3-panel w3-green w3-round w3-margin-top">
