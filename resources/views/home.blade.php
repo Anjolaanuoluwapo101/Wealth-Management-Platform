@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="https://www.w3schools.com/lib/w3-theme-blue.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
-    <script type="module" crossorigin src="{{ asset('assets/index-BQCAWadg.js')}}"></script>
+    <script type="module" crossorigin src="{{ asset('assets/index-DlX9k5DU.js')}}"></script>
     <link rel="stylesheet" crossorigin href="{{ asset('assets/index-CVDqybpN.css')}}">
   </head>
 
