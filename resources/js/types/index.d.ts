@@ -41,3 +41,12 @@ export interface User {
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
 }
+
+
+export interface DashboardSectionCardProps {
+    title: string;
+    subtitle?: string;
+    children: React.ReactNode;
+    addButton?: React.ReactNode;
+}
+

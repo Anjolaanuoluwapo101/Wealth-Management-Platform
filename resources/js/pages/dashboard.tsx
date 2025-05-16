@@ -3,7 +3,7 @@ import W3Layout from '@/layouts/w3-layout';
 import { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import CredentialCheckModal from '@/components/CredentialCheckModal';
-import {type SharedData } from '@/types';
+import { type SharedData, DashboardSectionCardProps } from '@/types';
 import axios from 'axios';
 
 
@@ -37,9 +37,31 @@ export default function Dashboard() {
     interface insurance {
         id?: number;
         type: string,
-        policy_number : number,
-        expiry_date : string
+        policy_number: number,
+        expiry_date: string
     }
+
+
+
+    const DashboardSectionCard: React.FC<DashboardSectionCardProps> = ({ title, subtitle, children, addButton }) => (
+        <div className="w3-section">
+            <div className="w3-card w3-white w3-round-large w3-padding-large w3-margin-bottom w3-animate-opacity" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                <div className="w3-border-bottom w3-padding-bottom w3-margin-bottom">
+                    <h3 className="w3-text-theme w3-margin-bottom-0" style={{ fontWeight: 600 }}>{title}</h3>
+                    {subtitle && <span className="w3-text-grey" style={{ fontSize: '0.95em' }}>{subtitle}</span>}
+                </div>
+                <div className="w3-responsive">
+                    {children}
+                </div>
+                {addButton && (
+                    <div>
+                        {addButton}
+                        <div className="w3-clear"></div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 
     const [activeTab, setActiveTab] = useState('portfolio');
     const [mutualFunds, setMutualFunds] = useState<MutualFund[]>([]);
@@ -50,19 +72,83 @@ export default function Dashboard() {
     const { auth } = usePage<SharedData>().props;
     const [showModal, setShowModal] = useState(true);
 
+    const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: (File | { name: string; data: string; type: string; lastModified: number; })[] }>({});
+
+    const assetTypes = [
+        { key: 'Bonds', desc: 'Upload or add details of your bonds.' },
+        { key: 'Insurance', desc: 'Health, Life, or Vehicle insurance policies.' },
+        { key: 'Fixed Deposits', desc: 'Details of your fixed deposit accounts.' },
+        { key: 'Post Office (PO)', desc: 'Investments or savings in post office schemes.' },
+        { key: 'Savings Account', desc: 'Details of your savings accounts.' },
+        { key: 'Current Account', desc: 'Details of your current accounts.' },
+        { key: 'PMS, AIF, NPS', desc: 'Portfolio Management Services, Alternative Investment Funds, or National Pension Scheme.' },
+        { key: 'Stocks', desc: 'Details of your stocks with ISIN for auto-update.' },
+        { key: 'Credit Cards', desc: 'Details of your credit cards.' },
+        { key: 'Loans', desc: 'Home or personal loan details.' },
+    ];
+
+
+    // Utility to convert File to base64
+    const fileToBase64 = (file: File): Promise<string> =>
+        new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+    // Load files from localStorage on mount
+    useEffect(() => {
+        const stored = localStorage.getItem('uploadedFiles');
+        if (stored) {
+            setUploadedFiles(JSON.parse(stored));
+        }
+    }, []);
+
+    // Save files to localStorage whenever uploadedFiles changes
+    useEffect(() => {
+        localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
+    }, [uploadedFiles]);
+
+    // Handle file upload (store as base64 in localStorage)
+    const handleFileUpload = async (assetType: string, files: FileList | null) => {
+        if (!files) return;
+        const fileArr = Array.from(files);
+        const base64Files = await Promise.all(
+            fileArr.map(async (file) => ({
+                name: file.name,
+                data: await fileToBase64(file),
+                type: file.type,
+                lastModified: file.lastModified,
+            }))
+        );
+        setUploadedFiles(prev => ({
+            ...prev,
+            [assetType]: [...(prev[assetType] || []), ...base64Files]
+        }));
+    };
+
+    // Remove a file
+    const handleRemoveFile = (assetType: string, index: number) => {
+        setUploadedFiles(prev => ({
+            ...prev,
+            [assetType]: prev[assetType].filter((_, i) => i !== index)
+        }));
+    };
+
 
     //Confirm if the user has completed their credentials
     useEffect(() => {
         const { pan_card, kyc_verified, address_proof, bank_proof, self_photograph } = auth.user;
         console.log(auth.user);
-        if (pan_card == null || kyc_verified == null || address_proof  == null || bank_proof == null || self_photograph ==  null) {
+        if (pan_card == null || kyc_verified == null || address_proof == null || bank_proof == null || self_photograph == null) {
             window.location.href = route('profile.edit');
 
         } else {
             setShowModal(false);
         }
     }, [auth.user]);
-    
+
     //Load existing values
     useEffect(() => {
         axios.get('/dashboard/data')
@@ -187,128 +273,250 @@ export default function Dashboard() {
     };
 
     const addInsurance = () => {
-        setInsurances([...insurances, { type: '', policy_number: 0 , expiry_date: '' }]);
+        setInsurances([...insurances, { type: '', policy_number: 0, expiry_date: '' }]);
     };
 
     const renderPortfolio = () => (
-        <div>
-            <h3 className="w3-text-black">Mutual Funds</h3>
-            <table className="w3-table w3-bordered w3-striped w3-margin-bottom">
+        <DashboardSectionCard
+            title="Mutual Funds"
+            subtitle="Track your mutual fund investments"
+            addButton={
+                <button
+                    className="w3-button w3-theme w3-round w3-border w3-hover-amber w3-right"
+                    style={{ marginTop: 8 }}
+                    onClick={addMutualFund}
+                >
+                    <i className="fa fa-plus w3-margin-right"></i>Add Mutual Fund
+                </button>
+            }
+        >
+            <table className="w3-table w3-bordered w3-hoverable w3-striped w3-white w3-small w3-margin-bottom">
                 <thead>
-                    <tr>
-                        <th>Fund Name</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th>Transactions</th>
-                        <th>Actions</th>
+                    <tr className="w3-theme-l4">
+                        <th className="w3-text-theme">Fund Name</th>
+                        <th className="w3-text-theme">Type</th>
+                        <th className="w3-text-theme">Value</th>
+                        <th className="w3-text-theme">Transactions</th>
+                        <th className="w3-text-theme">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {mutualFunds.map((fund, index) => (
                         <tr key={index}>
-                            <td><input type="text" value={fund.name} onChange={(e) => {
-                                const updatedFunds = [...mutualFunds];
-                                updatedFunds[index].name = e.target.value;
-                                setMutualFunds(updatedFunds);
-                            }} /></td>
-                            <td><input type="text" value={fund.type} onChange={(e) => {
-                                const updatedFunds = [...mutualFunds];
-                                updatedFunds[index].type = e.target.value;
-                                setMutualFunds(updatedFunds);
-                            }} /></td>
-                            <td><input type="number" value={fund.value} onChange={(e) => {
-                                const updatedFunds = [...mutualFunds];
-                                updatedFunds[index].value = parseFloat(e.target.value);
-                                setMutualFunds(updatedFunds);
-                            }} /></td>
-                            <td><input type="text" value={fund.transactions} onChange={(e) => {
-                                const updatedFunds = [...mutualFunds];
-                                updatedFunds[index].transactions = e.target.value;
-                                setMutualFunds(updatedFunds);
-                            }} /></td>
                             <td>
-                                <button className="w3-button w3-red" onClick={() => deleteItem('mutualFunds', fund.id, index)}>Delete</button>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="text"
+                                    value={fund.name}
+                                    placeholder="Fund Name"
+                                    onChange={(e) => {
+                                        const updatedFunds = [...mutualFunds];
+                                        updatedFunds[index].name = e.target.value;
+                                        setMutualFunds(updatedFunds);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="text"
+                                    value={fund.type}
+                                    placeholder="Type"
+                                    onChange={(e) => {
+                                        const updatedFunds = [...mutualFunds];
+                                        updatedFunds[index].type = e.target.value;
+                                        setMutualFunds(updatedFunds);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="number"
+                                    value={fund.value}
+                                    placeholder="Value"
+                                    onChange={(e) => {
+                                        const updatedFunds = [...mutualFunds];
+                                        updatedFunds[index].value = parseFloat(e.target.value);
+                                        setMutualFunds(updatedFunds);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="text"
+                                    value={fund.transactions}
+                                    placeholder="Transactions"
+                                    onChange={(e) => {
+                                        const updatedFunds = [...mutualFunds];
+                                        updatedFunds[index].transactions = e.target.value;
+                                        setMutualFunds(updatedFunds);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <button
+                                    className="w3-button w3-round w3-border w3-hover-light-grey w3-text-red"
+                                    style={{ padding: '4px 12px' }}
+                                    onClick={() => deleteItem('mutualFunds', fund.id, index)}
+                                >
+                                    <i className="fa fa-trash"></i> Delete
+                                </button>
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
-            <button className="w3-button w3-blue w3-margin w3-right" onClick={addMutualFund}>Add Mutual Fund</button>
-        </div>
+        </DashboardSectionCard>
     );
 
     const renderOtherAssets = () => (
-        <div>
-            <h3 className="w3-text-black">Other Assets</h3>
-            <table className="w3-table w3-bordered w3-striped w3-margin-bottom">
+        <DashboardSectionCard
+            title="Other Assets"
+            subtitle="Add your other assets here"
+            addButton={
+                <button
+                    className="w3-button w3-theme w3-round w3-border w3-hover-amber w3-right"
+                    style={{ marginTop: 8 }}
+                    onClick={addOtherAsset}
+                >
+                    <i className="fa fa-plus w3-margin-right"></i>Add Asset
+                </button>
+            }
+        >
+            <table className="w3-table w3-bordered w3-hoverable w3-striped w3-white w3-small w3-margin-bottom">
                 <thead>
-                    <tr>
-                        <th>Asset Type</th>
-                        <th>Value</th>
-                        <th>Actions</th>
+                    <tr className="w3-theme-l4">
+                        <th className="w3-text-theme">Asset Type</th>
+                        <th className="w3-text-theme">Value</th>
+                        <th className="w3-text-theme">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {otherAssets.map((asset, index) => (
                         <tr key={index}>
-                            <td><input type="text" value={asset.type} onChange={(e) => {
-                                const updatedAssets = [...otherAssets];
-                                updatedAssets[index].type = e.target.value;
-                                setOtherAssets(updatedAssets);
-                            }} /></td>
-                            <td><input type="number" value={asset.value} onChange={(e) => {
-                                const updatedAssets = [...otherAssets];
-                                updatedAssets[index].value = parseFloat(e.target.value);
-                                setOtherAssets(updatedAssets);
-                            }} /></td>
                             <td>
-                                <button className="w3-button w3-red" onClick={() => deleteItem('otherAssets', asset.id, index)}>Delete</button>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="text"
+                                    value={asset.type}
+                                    placeholder="Asset Type"
+                                    onChange={(e) => {
+                                        const updatedAssets = [...otherAssets];
+                                        updatedAssets[index].type = e.target.value;
+                                        setOtherAssets(updatedAssets);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="number"
+                                    value={asset.value}
+                                    placeholder="Value"
+                                    onChange={(e) => {
+                                        const updatedAssets = [...otherAssets];
+                                        updatedAssets[index].value = parseFloat(e.target.value);
+                                        setOtherAssets(updatedAssets);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <button
+                                    className="w3-button w3-round w3-border w3-hover-light-grey w3-text-red"
+                                    style={{ padding: '4px 12px' }}
+                                    onClick={() => deleteItem('otherAssets', asset.id, index)}
+                                >
+                                    <i className="fa fa-trash"></i> Delete
+                                </button>
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
-            <button className="w3-button w3-blue w3-margin w3-right" onClick={addOtherAsset}>Add Asset</button>
-        </div>
+        </DashboardSectionCard>
     );
 
     const renderFixedIncome = () => (
-        <div>
-            <h3 className="w3-text-black">Fixed Income</h3>
-            <table className="w3-table w3-bordered w3-striped w3-margin-bottom">
+        <DashboardSectionCard
+            title="Other Assets"
+            subtitle="Add your other assets here"
+            addButton={
+                <button
+                    className="w3-button w3-theme w3-round w3-border w3-hover-amber w3-right"
+                    style={{ marginTop: 8 }}
+                    onClick={addFixedIncome}
+                >
+                    <i className="fa fa-plus w3-margin-right"></i>Add Fixed Income
+                </button>
+            }
+        >
+
+            <table className="w3-table w3-bordered w3-hoverable w3-striped w3-white w3-small w3-margin-bottom">
                 <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th>Actions</th>
+                    <tr className="w3-theme-l4">
+                        <th className="w3-text-theme">Type</th>
+                        <th className="w3-text-theme">Value</th>
+                        <th className="w3-text-theme">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {fixedIncomes.map((income, index) => (
                         <tr key={index}>
-                            <td><input type="text" value={income.type} onChange={(e) => {
-                                const updatedIncomes = [...fixedIncomes];
-                                updatedIncomes[index].type = e.target.value;
-                                setFixedIncomes(updatedIncomes);
-                            }} /></td>
-                            <td><input type="number" value={income.value} onChange={(e) => {
-                                const updatedIncomes = [...fixedIncomes];
-                                updatedIncomes[index].value = parseFloat(e.target.value);
-                                setFixedIncomes(updatedIncomes);
-                            }} /></td>
                             <td>
-                                <button className="w3-button w3-red" onClick={() => deleteItem('fixedIncomes', income.id, index)}>Delete</button>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="text"
+                                    value={income.type}
+                                    placeholder="Type"
+                                    onChange={(e) => {
+                                        const updatedIncomes = [...fixedIncomes];
+                                        updatedIncomes[index].type = e.target.value;
+                                        setFixedIncomes(updatedIncomes);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    className="w3-input w3-border w3-round"
+                                    type="number"
+                                    value={income.value}
+                                    placeholder="Value"
+                                    onChange={(e) => {
+                                        const updatedIncomes = [...fixedIncomes];
+                                        updatedIncomes[index].value = parseFloat(e.target.value);
+                                        setFixedIncomes(updatedIncomes);
+                                    }}
+                                />
+                            </td>
+                            <td>
+                                <button
+                                    className="w3-button w3-round w3-border w3-hover-light-grey w3-text-red"
+                                    style={{ padding: '4px 12px' }}
+                                    onClick={() => deleteItem('fixedIncomes', income.id, index)}
+                                >
+                                    <i className="fa fa-trash"></i> Delete
+                                </button>
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
-            <button className="w3-button w3-blue w3-margin w3-right" onClick={addFixedIncome}>Add Fixed Income</button>
-        </div>
+            <div className="w3-clear"></div>
+
+        </DashboardSectionCard>
+
     );
 
     const renderInsurance = () => (
-        <div>
+        <DashboardSectionCard
+            title="Other Assets"
+            subtitle="Add your other assets here"
+            addButton={
+                <button className="w3-button w3-theme w3-round w3-border w3-hover-amber w3-right" onClick={addInsurance}>Add Insurance</button>
+            }
+        >
             <h3 className="w3-text-black">Insurance</h3>
             <table className="w3-table w3-bordered w3-striped w3-margin-bottom">
                 <thead>
@@ -344,64 +552,74 @@ export default function Dashboard() {
                     ))}
                 </tbody>
             </table>
-            <button className="w3-button w3-blue w3-margin w3-right" onClick={addInsurance}>Add Insurance</button>
-        </div>
+        </DashboardSectionCard>
     );
 
     const renderAddAssets = () => (
-        <div>
-            <h3 className="w3-text-black">Add/Upload Assets</h3>
-            <table className="w3-table w3-bordered w3-striped">
+        <DashboardSectionCard
+            title="Add/Upload Assets(Files are stored in browser)"
+            subtitle="Upload and manage your asset documents (PDF only, stored in browser)"
+        >
+            <table className="w3-table w3-bordered w3-striped w3-white w3-small">
                 <thead>
                     <tr>
                         <th>Asset Type</th>
                         <th>Description</th>
+                        <th>Upload PDF</th>
+                        <th>Uploaded Files</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Bonds</td>
-                        <td>Upload or add details of your bonds.</td>
-                    </tr>
-                    <tr>
-                        <td>Insurance</td>
-                        <td>Health, Life, or Vehicle insurance policies.</td>
-                    </tr>
-                    <tr>
-                        <td>Fixed Deposits</td>
-                        <td>Details of your fixed deposit accounts.</td>
-                    </tr>
-                    <tr>
-                        <td>Post Office (PO)</td>
-                        <td>Investments or savings in post office schemes.</td>
-                    </tr>
-                    <tr>
-                        <td>Savings Account</td>
-                        <td>Details of your savings accounts.</td>
-                    </tr>
-                    <tr>
-                        <td>Current Account</td>
-                        <td>Details of your current accounts.</td>
-                    </tr>
-                    <tr>
-                        <td>PMS, AIF, NPS</td>
-                        <td>Portfolio Management Services, Alternative Investment Funds, or National Pension Scheme.</td>
-                    </tr>
-                    <tr>
-                        <td>Stocks</td>
-                        <td>Details of your stocks with ISIN for auto-update.</td>
-                    </tr>
-                    <tr>
-                        <td>Credit Cards</td>
-                        <td>Details of your credit cards.</td>
-                    </tr>
-                    <tr>
-                        <td>Loans</td>
-                        <td>Home or personal loan details.</td>
-                    </tr>
+                    {assetTypes.map(asset => (
+                        <tr key={asset.key}>
+                            <td>{asset.key}</td>
+                            <td>{asset.desc}</td>
+                            <td>
+                                <form
+                                    onSubmit={e => {
+                                        e.preventDefault();
+                                    }}
+                                >
+                                    <input
+                                        type="file"
+                                        accept="application/pdf"
+                                        multiple
+                                        style={{ width: '160px' }}
+                                        onChange={e => handleFileUpload(asset.key, e.target.files)}
+                                    />
+                                </form>
+                            </td>
+                            <td>
+                                {(uploadedFiles[asset.key] || []).length === 0 && (
+                                    <span className="w3-text-grey w3-small">No files</span>
+                                )}
+                                {(uploadedFiles[asset.key] || []).map((file: any, idx: number) => (
+                                    <div key={idx} className="w3-margin-bottom">
+                                        <a
+                                            href={file.data}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w3-text-theme"
+                                            style={{ marginRight: 8 }}
+                                        >
+                                            {file.name}
+                                        </a>
+                                        <button
+                                            type="button"
+                                            className="w3-button w3-tiny w3-round w3-border w3-hover-red w3-text-red"
+                                            onClick={() => handleRemoveFile(asset.key, idx)}
+                                            style={{ padding: '2px 8px' }}
+                                        >
+                                            <i className="fa fa-trash"> Delete </i>
+                                        </button>
+                                    </div>
+                                ))}
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
-        </div>
+        </DashboardSectionCard>
     );
 
     const renderFixedIncomeDropdown = () => (
@@ -469,24 +687,45 @@ export default function Dashboard() {
     };
 
     return (
-        <W3Layout>
+        <W3Layout >
             <Head title="Dashboard" />
-            { showModal && <CredentialCheckModal /> } 
+            {showModal && <CredentialCheckModal />}
             <div className="w3-container w3-padding-32">
-                <h2 className="w3-center">Welcome to Your Dashboard</h2>
-                <div className="w3-bar w3-light-grey w3-margin-bottom">
-                    <button className={`w3-bar-item w3-button ${activeTab === 'portfolio' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('portfolio')}>Mutual Funds</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'otherAssets' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('otherAssets')}>Other Assets</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'fixedIncome' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('fixedIncome')}>Fixed Income</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'insurance' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('insurance')}>Insurance</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'profile' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('profile')}>My Profile</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'addAssets' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('addAssets')}>Add/Upload Assets</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'fixedIncomeDropdown' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('fixedIncomeDropdown')}>Fixed Income</button>
-                    <button className={`w3-bar-item w3-button ${activeTab === 'insuranceDropdown' ? 'w3-blue' : ''}`} onClick={() => setActiveTab('insuranceDropdown')}>Insurance</button>
+                <div>
+                    <h2 className="w3-center">Welcome to Your Dashboard</h2>
+                    <div
+                        className="w3-bar w3-white w3-card w3-round-large w3-padding-small w3-margin-bottom"
+                        style={{ overflowX: 'auto', border: '1px solid #eee' }}
+                    >
+                        {[
+                            { key: 'portfolio', label: 'Mutual Funds' },
+                            { key: 'otherAssets', label: 'Other Assets' },
+                            { key: 'fixedIncome', label: 'Fixed Income' },
+                            // { key: 'insurance', label: 'Insurance' },
+                            // { key: 'profile', label: 'My Profile' },
+                            { key: 'addAssets', label: 'Add/Upload Assets' },
+                            { key: 'fixedIncomeDropdown', label: 'Fixed Income' },
+                            { key: 'insuranceDropdown', label: 'Insurance' },
+                        ].map(tab => (
+                            <button
+                                key={tab.key}
+                                className={`w3-bar-item w3-button w3-round-large w3-hover-theme w3-hover-text-white ${activeTab === tab.key ? 'w3-theme w3-text-white' : 'w3-text-theme'}`}
+                                style={{
+                                    margin: '0 4px',
+                                    fontWeight: activeTab === tab.key ? 600 : 400,
+                                    boxShadow: activeTab === tab.key ? '0 2px 8px rgba(255,193,7,0.15)' : undefined,
+                                    transition: 'all 0.2s'
+                                }}
+                                onClick={() => setActiveTab(tab.key)}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                    {renderContent()}
                 </div>
-                {renderContent()}
-                <button className="w3-button w3-green w3-margin-top w3-right" onClick={saveData}>Save Changes</button>
+                <button className="w3-button w3-theme w3-round w3-border w3-hover-amber w3-right" onClick={saveData}>Save Changes</button>
             </div>
-        </W3Layout>
+        </W3Layout >
     );
 }

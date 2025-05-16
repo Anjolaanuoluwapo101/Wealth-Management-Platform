@@ -89,7 +89,7 @@ export default function Profile() {
             <br />
 
             <div className="w3-container w3-padding-16 w3-card-4 w3-light-grey" style={{ maxWidth: "80%", margin: "auto" }}>
-                <div className='w3-center w3-text-custom-yellow'>
+                <div className='w3-text-theme w3-margin-bottom-0 w3-center'>
                 <h2>Profile Informations</h2>
                 <p style={{color: "black"}}>Update your profile details and KYC information.</p>
                 </div>

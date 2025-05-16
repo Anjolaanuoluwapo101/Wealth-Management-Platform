@@ -61,7 +61,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 <p> Once you have clicked the verification link (you may have to click multiple times) sent to your email, Please go ahead an refresh this page!</p>
 
                 {status === 'verification-link-sent' && (
-                    <div className="w3-panel w3-green w3-round w3-margin-top">
+                    <div className="w3-panel w3-custom-yellow-l2 w3-round w3-margin-top">
                         A new verification link has been sent to the email address you provided during registration.
                     </div>
                 )}
