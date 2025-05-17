@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import W3Layout from '@/layouts/w3-layout';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
 import CredentialCheckModal from '@/components/CredentialCheckModal';
 import { type SharedData, DashboardSectionCardProps } from '@/types';
@@ -19,7 +19,7 @@ export default function Dashboard() {
         name: string;
         type: string;
         value: number;
-        transactions: string;
+        transactions: number;
     }
 
     interface OtherAsset {
@@ -63,11 +63,38 @@ export default function Dashboard() {
         </div>
     );
 
+    // Tab state
     const [activeTab, setActiveTab] = useState('portfolio');
-    const [mutualFunds, setMutualFunds] = useState<MutualFund[]>([]);
-    const [otherAssets, setOtherAssets] = useState<OtherAsset[]>([]);
-    const [fixedIncomes, setFixedIncomes] = useState<fixedIncome[]>([]);
-    const [insurances, setInsurances] = useState<insurance[]>([]);
+    const handleTabClick = (tab: string) => {
+        setActiveTab(tab);
+    };
+
+    //to trigger a rerender
+    const [, forceUpdate] = useState(0);
+    const rerender = () => {
+        forceUpdate((prev) => prev + 1);
+    }
+
+    const mutualFunds = useRef<MutualFund[]>([]);
+    const otherAssets = useRef<OtherAsset[]>([]);
+    const fixedIncomes = useRef<fixedIncome[]>([]);
+    const insurances = useRef<insurance[]>([]);
+
+    const setMutualFunds = (data: MutualFund[]) => {
+        mutualFunds.current = data;
+    }
+
+    const setOtherAssets = (data: OtherAsset[]) => {
+        otherAssets.current = data;
+    }
+    const setFixedIncomes = (data: fixedIncome[]) => {
+        fixedIncomes.current = data;
+    }
+    const setInsurances = (data: insurance[]) => {
+        insurances.current = data;
+    }
+
+
 
     const { auth } = usePage<SharedData>().props;
     const [showModal, setShowModal] = useState(true);
@@ -87,6 +114,8 @@ export default function Dashboard() {
         { key: 'Loans', desc: 'Home or personal loan details.' },
     ];
 
+    // Helper to generate a unique id
+    const generateId = () => Date.now() + Math.floor(Math.random() * 1000000);
 
     // Utility to convert File to base64
     const fileToBase64 = (file: File): Promise<string> =>
@@ -153,24 +182,27 @@ export default function Dashboard() {
     useEffect(() => {
         axios.get('/dashboard/data')
             .then((response) => {
-                setMutualFunds(response.data.mutualFunds);
-                setOtherAssets(response.data.otherAssets);
-                setFixedIncomes(response.data.fixedIncomes);
-                setInsurances(response.data.insurances);
+                const ensureIds = <T extends { id?: number }>(arr: T[]) =>
+                    arr.map(item => ({ ...item, id: item.id ?? generateId() }));
+                setMutualFunds(ensureIds(response.data.mutualFunds || []));
+                setOtherAssets(ensureIds(response.data.otherAssets || []));
+                setFixedIncomes(ensureIds(response.data.fixedIncomes || []));
+                setInsurances(ensureIds(response.data.insurances || []));
+
+                //forces a rerender
+                rerender();
             })
             .catch((error) => {
                 console.error('Error fetching dashboard data:', error);
             });
     }, []);
-
-    //Save Additions Or Editing
     const saveData = () => {
         // Validation functions
         const validateMutualFund = (fund: any): boolean => {
             return typeof fund.name === 'string' &&
                 typeof fund.type === 'string' &&
                 typeof fund.value === 'number' &&
-                typeof fund.transactions === 'string';
+                typeof fund.transactions === 'number';
         };
 
         const validateOtherAsset = (asset: any): boolean => {
@@ -183,47 +215,46 @@ export default function Dashboard() {
                 typeof income.value === 'number';
         };
 
-        const validateInsurance = (insurance: any): boolean => {
-            return typeof insurance.type === 'string' &&
-                typeof insurance.policy_number === 'number' &&
-                typeof insurance.expiry_date === 'string';
-        };
+        // const validateInsurance = (insurance: any): boolean => {
+        //     return typeof insurance.type === 'string' &&
+        //         typeof insurance.policy_number === 'string' &&
+        //         typeof insurance.expiry_date === 'string';
+        // };
 
         // Validate all entries
-        for (const fund of mutualFunds) {
+        
+        for (const fund of mutualFunds.current) {
             if (!validateMutualFund(fund)) {
                 alert('Invalid data in Mutual Funds. Please check all entries.');
                 return;
             }
         }
 
-        for (const asset of otherAssets) {
+        for (const asset of otherAssets.current) {
             if (!validateOtherAsset(asset)) {
                 alert('Invalid data in Other Assets. Please check all entries.');
                 return;
             }
         }
 
-        for (const income of fixedIncomes) {
+        for (const income of fixedIncomes.current) {
             if (!validateFixedIncome(income)) {
                 alert('Invalid data in Fixed Incomes. Please check all entries.');
                 return;
             }
         }
 
-        for (const insurance of insurances) {
-            if (!validateInsurance(insurance)) {
-                alert('Invalid data in Insurances. Please check all entries.');
-                return;
-            }
-        }
+        let mutualFundsData = mutualFunds.current;
+        let otherAssetsData = otherAssets.current;
+        let fixedIncomesData = fixedIncomes.current;
+        let insurancesData = insurances.current;
 
         // Proceed with saving if all validations pass
         axios.post('/dashboard/data', {
-            mutualFunds,
-            otherAssets,
-            fixedIncomes,
-            insurances,
+            mutualFunds: mutualFundsData,
+            otherAssets: otherAssetsData,
+            fixedIncomes: fixedIncomesData,
+            insurances: insurancesData,
             // ...other data...
         }).then((response) => {
             console.log(response)
@@ -238,19 +269,19 @@ export default function Dashboard() {
     const deleteItem = (type: string, id: number | undefined, index: number) => {
         if (!id) {
             // If the item doesn't have an ID, just remove it locally
-            if (type === 'mutualFunds') setMutualFunds(mutualFunds.filter((_, i) => i !== index));
-            if (type === 'otherAssets') setOtherAssets(otherAssets.filter((_, i) => i !== index));
-            if (type === 'fixedIncomes') setFixedIncomes(fixedIncomes.filter((_, i) => i !== index));
-            if (type === 'insurances') setInsurances(insurances.filter((_, i) => i !== index));
+            if (type === 'mutualFunds') setMutualFunds(mutualFunds.current.filter((_, i) => i !== index));
+            if (type === 'otherAssets') setOtherAssets(otherAssets.current.filter((_, i) => i !== index));
+            if (type === 'fixedIncomes') setFixedIncomes(fixedIncomes.current.filter((_, i) => i !== index));
+            if (type === 'insurances') setInsurances(insurances.current.filter((_, i) => i !== index));
             return;
         }
 
         axios.delete(`/dashboard/data/${type}/${id}`)
             .then(() => {
-                if (type === 'mutualFunds') setMutualFunds(mutualFunds.filter((_, i) => i !== index));
-                if (type === 'otherAssets') setOtherAssets(otherAssets.filter((_, i) => i !== index));
-                if (type === 'fixedIncomes') setFixedIncomes(fixedIncomes.filter((_, i) => i !== index));
-                if (type === 'insurances') setInsurances(insurances.filter((_, i) => i !== index));
+                if (type === 'mutualFunds') setMutualFunds(mutualFunds.current.filter((_, i) => i !== index));
+                if (type === 'otherAssets') setOtherAssets(otherAssets.current.filter((_, i) => i !== index));
+                if (type === 'fixedIncomes') setFixedIncomes(fixedIncomes.current.filter((_, i) => i !== index));
+                if (type === 'insurances') setInsurances(insurances.current.filter((_, i) => i !== index));
 
                 alert("Deleted!")
             })
@@ -261,19 +292,23 @@ export default function Dashboard() {
     };
 
     const addMutualFund = () => {
-        setMutualFunds([...mutualFunds, { name: '', type: '', value: 0, transactions: '' }]);
+        setMutualFunds([...mutualFunds.current, { id: generateId(), name: '', type: '', value: 0, transactions: 0 }]);
+        rerender();
     };
 
     const addOtherAsset = () => {
-        setOtherAssets([...otherAssets, { type: '', value: 0 }]);
+        setOtherAssets([...otherAssets.current, { id: generateId(), type: '', value: 0 }]);
+        rerender();
     };
 
     const addFixedIncome = () => {
-        setFixedIncomes([...fixedIncomes, { type: '', value: 0 }]);
+        setFixedIncomes([...fixedIncomes.current, { id: generateId(), type: '', value: 0 }]);
+        rerender();
     };
 
     const addInsurance = () => {
-        setInsurances([...insurances, { type: '', policy_number: 0, expiry_date: '' }]);
+        setInsurances([...insurances.current, { id: generateId(), type: '', policy_number: 0, expiry_date: '' }]);
+        rerender();
     };
 
     const renderPortfolio = () => (
@@ -301,17 +336,19 @@ export default function Dashboard() {
                     </tr>
                 </thead>
                 <tbody>
-                    {mutualFunds.map((fund, index) => (
-                        <tr key={index}>
+                    {mutualFunds.current.map((fund) => (
+                        <tr key={fund.id}>
                             <td>
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="text"
-                                    value={fund.name}
+                                    defaultValue={fund.name}
                                     placeholder="Fund Name"
+
                                     onChange={(e) => {
-                                        const updatedFunds = [...mutualFunds];
-                                        updatedFunds[index].name = e.target.value;
+                                        const updatedFunds = mutualFunds.current.map(f => f.id === fund.id ? { ...f, name: e.target.value } : f);
+                                        // setMutualFunds(updatedFunds);
+                                        // e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '');
                                         setMutualFunds(updatedFunds);
                                     }}
                                 />
@@ -320,11 +357,10 @@ export default function Dashboard() {
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="text"
-                                    value={fund.type}
+                                    defaultValue={fund.type}
                                     placeholder="Type"
                                     onChange={(e) => {
-                                        const updatedFunds = [...mutualFunds];
-                                        updatedFunds[index].type = e.target.value;
+                                        const updatedFunds = mutualFunds.current.map(f => f.id === fund.id ? { ...f, type: e.target.value } : f);
                                         setMutualFunds(updatedFunds);
                                     }}
                                 />
@@ -333,11 +369,10 @@ export default function Dashboard() {
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="number"
-                                    value={fund.value}
+                                    defaultValue={fund.value}
                                     placeholder="Value"
                                     onChange={(e) => {
-                                        const updatedFunds = [...mutualFunds];
-                                        updatedFunds[index].value = parseFloat(e.target.value);
+                                        const updatedFunds = mutualFunds.current.map(f => f.id === fund.id ? { ...f, value: parseFloat(e.target.value) } : f);
                                         setMutualFunds(updatedFunds);
                                     }}
                                 />
@@ -345,12 +380,11 @@ export default function Dashboard() {
                             <td>
                                 <input
                                     className="w3-input w3-border w3-round"
-                                    type="text"
-                                    value={fund.transactions}
+                                    type="number"
+                                    defaultValue={fund.transactions}
                                     placeholder="Transactions"
                                     onChange={(e) => {
-                                        const updatedFunds = [...mutualFunds];
-                                        updatedFunds[index].transactions = e.target.value;
+                                        const updatedFunds = mutualFunds.current.map(f => f.id === fund.id ? { ...f, transactions: parseFloat(e.target.value) } : f);
                                         setMutualFunds(updatedFunds);
                                     }}
                                 />
@@ -359,7 +393,11 @@ export default function Dashboard() {
                                 <button
                                     className="w3-button w3-round w3-border w3-hover-light-grey w3-text-red"
                                     style={{ padding: '4px 12px' }}
-                                    onClick={() => deleteItem('mutualFunds', fund.id, index)}
+                                    onClick={() => {
+                                            deleteItem('mutualFunds', fund.id, mutualFunds.current.findIndex(f => f.id === fund.id));
+                                            rerender();
+                                        }
+                                    }
                                 >
                                     <i className="fa fa-trash"></i> Delete
                                 </button>
@@ -394,17 +432,16 @@ export default function Dashboard() {
                     </tr>
                 </thead>
                 <tbody>
-                    {otherAssets.map((asset, index) => (
-                        <tr key={index}>
+                    {otherAssets.current.map((asset) => (
+                        <tr key={asset.id}>
                             <td>
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="text"
-                                    value={asset.type}
+                                    defaultValue={asset.type}
                                     placeholder="Asset Type"
                                     onChange={(e) => {
-                                        const updatedAssets = [...otherAssets];
-                                        updatedAssets[index].type = e.target.value;
+                                        const updatedAssets = otherAssets.current.map(a => a.id === asset.id ? { ...a, type: e.target.value } : a);
                                         setOtherAssets(updatedAssets);
                                     }}
                                 />
@@ -413,11 +450,10 @@ export default function Dashboard() {
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="number"
-                                    value={asset.value}
+                                    defaultValue={asset.value}
                                     placeholder="Value"
                                     onChange={(e) => {
-                                        const updatedAssets = [...otherAssets];
-                                        updatedAssets[index].value = parseFloat(e.target.value);
+                                        const updatedAssets = otherAssets.current.map(a => a.id === asset.id ? { ...a, value: parseFloat(e.target.value) } : a);
                                         setOtherAssets(updatedAssets);
                                     }}
                                 />
@@ -426,7 +462,7 @@ export default function Dashboard() {
                                 <button
                                     className="w3-button w3-round w3-border w3-hover-light-grey w3-text-red"
                                     style={{ padding: '4px 12px' }}
-                                    onClick={() => deleteItem('otherAssets', asset.id, index)}
+                                    onClick={() => deleteItem('otherAssets', asset.id, otherAssets.current.findIndex(a => a.id === asset.id))}
                                 >
                                     <i className="fa fa-trash"></i> Delete
                                 </button>
@@ -452,7 +488,6 @@ export default function Dashboard() {
                 </button>
             }
         >
-
             <table className="w3-table w3-bordered w3-hoverable w3-striped w3-white w3-small w3-margin-bottom">
                 <thead>
                     <tr className="w3-theme-l4">
@@ -462,17 +497,16 @@ export default function Dashboard() {
                     </tr>
                 </thead>
                 <tbody>
-                    {fixedIncomes.map((income, index) => (
-                        <tr key={index}>
+                    {fixedIncomes.current.map((income) => (
+                        <tr key={income.id}>
                             <td>
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="text"
-                                    value={income.type}
+                                    defaultValue={income.type}
                                     placeholder="Type"
                                     onChange={(e) => {
-                                        const updatedIncomes = [...fixedIncomes];
-                                        updatedIncomes[index].type = e.target.value;
+                                        const updatedIncomes = fixedIncomes.current.map(i => i.id === income.id ? { ...i, type: e.target.value } : i);
                                         setFixedIncomes(updatedIncomes);
                                     }}
                                 />
@@ -481,11 +515,10 @@ export default function Dashboard() {
                                 <input
                                     className="w3-input w3-border w3-round"
                                     type="number"
-                                    value={income.value}
+                                    defaultValue={income.value}
                                     placeholder="Value"
                                     onChange={(e) => {
-                                        const updatedIncomes = [...fixedIncomes];
-                                        updatedIncomes[index].value = parseFloat(e.target.value);
+                                        const updatedIncomes = fixedIncomes.current.map(i => i.id === income.id ? { ...i, value: parseFloat(e.target.value) } : i);
                                         setFixedIncomes(updatedIncomes);
                                     }}
                                 />
@@ -494,7 +527,7 @@ export default function Dashboard() {
                                 <button
                                     className="w3-button w3-round w3-border w3-hover-light-grey w3-text-red"
                                     style={{ padding: '4px 12px' }}
-                                    onClick={() => deleteItem('fixedIncomes', income.id, index)}
+                                    onClick={() => deleteItem('fixedIncomes', income.id, fixedIncomes.current.findIndex(i => i.id === income.id))}
                                 >
                                     <i className="fa fa-trash"></i> Delete
                                 </button>
@@ -504,9 +537,7 @@ export default function Dashboard() {
                 </tbody>
             </table>
             <div className="w3-clear"></div>
-
         </DashboardSectionCard>
-
     );
 
     const renderInsurance = () => (
@@ -528,25 +559,22 @@ export default function Dashboard() {
                     </tr>
                 </thead>
                 <tbody>
-                    {insurances.map((insurance, index) => (
-                        <tr key={index}>
-                            <td><input type="text" value={insurance.type} onChange={(e) => {
-                                const updatedInsurances = [...insurances];
-                                updatedInsurances[index].type = e.target.value;
+                    {insurances.current.map((insurance) => (
+                        <tr key={insurance.id}>
+                            <td><input type="text" defaultValue={insurance.type} onChange={(e) => {
+                                const updatedInsurances = insurances.current.map(ins => ins.id === insurance.id ? { ...ins, type: e.target.value } : ins);
                                 setInsurances(updatedInsurances);
                             }} /></td>
-                            <td><input type="number" value={insurance.policy_number} onChange={(e) => {
-                                const updatedInsurances = [...insurances];
-                                updatedInsurances[index].policy_number = parseFloat(e.target.value);
+                            <td><input type="number" defaultValue={insurance.policy_number} onChange={(e) => {
+                                const updatedInsurances = insurances.current.map(ins => ins.id === insurance.id ? { ...ins, policy_number: parseFloat(e.target.value) } : ins);
                                 setInsurances(updatedInsurances);
                             }} /></td>
-                            <td><input type="date" value={insurance.expiry_date} onChange={(e) => {
-                                const updatedInsurances = [...insurances];
-                                updatedInsurances[index].expiry_date = e.target.value;
+                            <td><input type="date" defaultValue={insurance.expiry_date} onChange={(e) => {
+                                const updatedInsurances = insurances.current.map(ins => ins.id === insurance.id ? { ...ins, expiry_date: e.target.value } : ins);
                                 setInsurances(updatedInsurances);
                             }} /></td>
                             <td>
-                                <button className="w3-button w3-red" onClick={() => deleteItem('insurances', insurance.id, index)}>Delete</button>
+                                <button className="w3-button w3-red" onClick={() => deleteItem('insurances', insurance.id, insurances.current.findIndex(ins => ins.id === insurance.id))}>Delete</button>
                             </td>
                         </tr>
                     ))}

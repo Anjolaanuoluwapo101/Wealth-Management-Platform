@@ -34,9 +34,9 @@ class DashboardController extends Controller
             foreach ($request->fixedIncomes as $income) {
                 FixedIncome::updateOrCreate(['id' => $income['id'] ?? null], array_merge($income, ['user_id' => $userId]));
             }
-            foreach ($request->insurances as $insurance) {
-                Insurance::updateOrCreate(['id' => $insurance['id'] ?? null], array_merge($insurance, ['user_id' => $userId]));
-            }
+            // foreach ($request->insurances as $insurance) {
+            //     Insurance::updateOrCreate(['id' => $insurance['id'] ?? null], array_merge($insurance, ['user_id' => $userId]));
+            // }
             return response()->json(['message' => 'Data saved successfully']);
         }catch(\Exception $e){
             return  "Error:".$e->getMessage();
